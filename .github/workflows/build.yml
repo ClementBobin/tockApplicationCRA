@@ -4,11 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
-  pull_request:
-    branches:
-      - main
-      - master
   workflow_dispatch:
 
 permissions:
@@ -25,11 +20,15 @@ jobs:
           - platform: 'ubuntu-22.04'
             args: ''
             artifact_name: 'linux'
-            node_version: '20'  # Keep Node 20 for Tauri build
+            node_version: '20'
           - platform: 'windows-latest'
             args: ''
             artifact_name: 'windows'
-            node_version: '20'  # Keep Node 20 for Tauri build
+            node_version: '20'
+          - platform: 'macos-latest'
+            args: ''
+            artifact_name: 'macos'
+            node_version: '20'
 
     runs-on: ${{ matrix.platform }}
 
@@ -39,14 +38,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js for Tauri build
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ matrix.node_version }}
           cache: 'npm'
           cache-dependency-path: 'tock-ui/package-lock.json'
 
-      - name: Install Rust stable
+      - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Linux dependencies
@@ -59,12 +58,25 @@ jobs:
             librsvg2-dev \
             patchelf \
             libssl-dev \
-            libgtk-3-dev
+            libgtk-3-dev \
+            libayatana-appindicator3-dev
+
+      - name: Install Windows dependencies
+        if: matrix.platform == 'windows-latest'
+        run: |
+          choco install -y visualstudio2022buildtools
+          choco install -y wixtoolset
+
+      - name: Install macOS dependencies
+        if: matrix.platform == 'macos-latest'
+        run: |
+          brew install create-dmg
 
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './tock-ui/src-tauri -> target'
+          key: ${{ runner.os }}-rust
 
       - name: Install frontend dependencies
         working-directory: ./tock-ui
@@ -76,6 +88,7 @@ jobs:
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -85,7 +98,7 @@ jobs:
             tock-ui/src-tauri/target/release/bundle/
           retention-days: 7
 
-  semantic-release:
+  create-release:
     needs: build-and-release
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
@@ -96,32 +109,20 @@ jobs:
         with:
           fetch-depth: 0
 
-      # ⚡ USE NODE 22 FOR SEMANTIC-RELEASE
-      - name: Setup Node.js 22 for semantic-release
+      - name: Setup Node.js 22
         uses: actions/setup-node@v4
         with:
           node-version: '22'
           cache: 'npm'
           cache-dependency-path: 'tock-ui/package-lock.json'
 
-      - name: Install semantic-release dependencies
-        working-directory: ./tock-ui
-        run: |
-          # Clean install with Node 22
-          npm ci
-
       - name: Download all build artifacts
         uses: actions/download-artifact@v4
         with:
           path: dist-artifacts
 
-      - name: Prepare artifacts for release
-        run: |
-          mkdir -p release-artifacts
-          find dist-artifacts -type f \( -name "*.deb" -o -name "*.AppImage" -o -name "*.msi" -o -name "*.exe" \) \
-            -exec cp {} release-artifacts/ \;
-          echo "Artifacts ready:"
-          ls -la release-artifacts/
+      - name: List downloaded artifacts
+        run: find dist-artifacts -type f
 
       - name: Semantic Release
         working-directory: ./tock-ui
