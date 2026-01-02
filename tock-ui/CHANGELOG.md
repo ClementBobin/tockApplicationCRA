@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.1.0...v1.2.0) (2026-01-02)
+
+
+### Features
+
+* Modify release configuration for multiple platforms ([da61e2d](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/da61e2dd4ecfb5b029a347b4fa434aaf3c17fd67))
+
 # [1.1.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.0.0...v1.1.0) (2026-01-02)
 
 
