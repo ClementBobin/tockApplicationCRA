@@ -16,21 +16,33 @@
         "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
       }
     ],
-    [
+        [
       "@semantic-release/github",
       {
         "assets": [
           {
-            "path": "../dist-artifacts/macos-artifacts/**/*",
-            "label": "macOS ${nextRelease.version}"
+            "path": "../dist-artifacts/windows-artifacts/**/*.exe",
+            "label": "Windows Installer ${nextRelease.version}"
           },
           {
-            "path": "../dist-artifacts/linux-artifacts/**/*",
-            "label": "Linux ${nextRelease.version}"
+            "path": "../dist-artifacts/windows-artifacts/**/*.msi",
+            "label": "Windows MSI ${nextRelease.version}"
           },
           {
-            "path": "../dist-artifacts/windows-artifacts/**/*",
-            "label": "Windows ${nextRelease.version}"
+            "path": "../dist-artifacts/linux-artifacts/**/*.AppImage",
+            "label": "Linux AppImage ${nextRelease.version}"
+          },
+          {
+            "path": "../dist-artifacts/linux-artifacts/**/*.deb",
+            "label": "Linux DEB ${nextRelease.version}"
+          },
+          {
+            "path": "../dist-artifacts/linux-artifacts/**/*.rpm",
+            "label": "Linux RPM ${nextRelease.version}"
+          },
+          {
+            "path": "../dist-artifacts/macos-artifacts/**/*.dmg",
+            "label": "macOS DMG ${nextRelease.version}"
           }
         ]
       }
