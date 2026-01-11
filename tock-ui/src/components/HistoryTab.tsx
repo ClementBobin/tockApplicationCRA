@@ -25,6 +25,10 @@ export const HistoryTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
+  // Date separator format used by the backend
+  // Format: === YYYY-MM-DD ===
+  const DATE_SEPARATOR_REGEX = /\n*===\s*(\d{4}-\d{2}-\d{2})\s*===\n*/;
+
   // Color palette for activities
   const colorPalette = [
     '#94a3b8', // slate-400
@@ -93,21 +97,36 @@ export const HistoryTab: React.FC = () => {
 
   const loadActivitiesForMonth = async () => {
     setLoading(true);
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     const newActivitiesData: { [key: string]: ActivityData } = {};
 
-      // Load activities for each day in the month from tock CLI
-      for (const day of days) {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        const result = await tockCommands.getActivitiesForDate(dateStr);
+    // Use the new bulk month fetch API
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed
+    
+    const result = await tockCommands.getActivitiesForMonth(year, month);
+    
+    if (result.success && result.output.trim()) {
+      // Parse the combined output which has format defined by DATE_SEPARATOR_REGEX:
+      // === 2026-01-01 ===
+      // <report data>
+      //
+      // === 2026-01-02 ===
+      // <report data>
+      
+      const sections = result.output.split(DATE_SEPARATOR_REGEX);
+      
+      // sections will be like: ['', '2026-01-01', '<data>', '2026-01-02', '<data>', ...]
+      // Ensure we have pairs of (date, data) by checking bounds
+      for (let i = 1; i + 1 < sections.length; i += 2) {
+        const dateStr = sections[i];
+        const output = sections[i + 1];
         
-        if (result.success && result.output.trim()) {
-          newActivitiesData[dateStr] = parseActivitiesOutput(result.output, dateStr);
+        if (dateStr && output && output.trim()) {
+          newActivitiesData[dateStr] = parseActivitiesOutput(output, dateStr);
         }
       }
+    }
 
     setActivitiesData(newActivitiesData);
     setLoading(false);

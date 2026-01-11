@@ -67,6 +67,10 @@ export const tockCommands = {
     return await invoke("get_activities_for_date", { date });
   },
 
+  getActivitiesForMonth: async (year: number, month: number): Promise<CommandResult> => {
+    return await invoke("get_activities_for_month", { year, month });
+  },
+
   saveReportToFile: async (
     dateType: string,
     date?: string,

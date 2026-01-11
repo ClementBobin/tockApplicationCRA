@@ -4,6 +4,10 @@ use std::io::Write;
 use std::path::PathBuf;
 use serde::{Deserialize, Serialize};
 use std::sync::OnceLock;
+use std::sync::Mutex;
+use std::collections::HashMap;
+use std::time::{Duration, Instant};
+use chrono::{NaiveDate, Datelike};
 
 mod db;
 use db::{Database, FavoriteProject, ApiRoute};
@@ -13,6 +17,85 @@ static DB: OnceLock<Database> = OnceLock::new();
 fn get_db() -> &'static Database {
     DB.get_or_init(|| {
         Database::new().expect("Failed to initialize database")
+    })
+}
+
+// Cache for command results
+struct CacheEntry {
+    result: CommandResult,
+    timestamp: Instant,
+}
+
+struct CommandCache {
+    entries: Mutex<HashMap<String, CacheEntry>>,
+    ttl: Duration,
+}
+
+impl CommandCache {
+    fn new(ttl_seconds: u64) -> Self {
+        Self {
+            entries: Mutex::new(HashMap::new()),
+            ttl: Duration::from_secs(ttl_seconds),
+        }
+    }
+
+    fn get(&self, key: &str) -> Option<CommandResult> {
+        let mut entries = match self.entries.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                // If the mutex is poisoned, recover the data and continue
+                // This is safe because we're just reading cached data
+                poisoned.into_inner()
+            }
+        };
+        if let Some(entry) = entries.get(key) {
+            if entry.timestamp.elapsed() < self.ttl {
+                return Some(CommandResult {
+                    success: entry.result.success,
+                    output: entry.result.output.clone(),
+                    error: entry.result.error.clone(),
+                });
+            } else {
+                entries.remove(key);
+            }
+        }
+        None
+    }
+
+    fn set(&self, key: String, result: CommandResult) {
+        let mut entries = match self.entries.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        entries.insert(key, CacheEntry {
+            result,
+            timestamp: Instant::now(),
+        });
+    }
+
+    fn invalidate(&self) {
+        let mut entries = match self.entries.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        entries.clear();
+    }
+
+    fn invalidate_pattern(&self, pattern: &str) {
+        let mut entries = match self.entries.lock() {
+            Ok(guard) => guard,
+            Err(poisoned) => poisoned.into_inner(),
+        };
+        entries.retain(|key, _| !key.contains(pattern));
+    }
+}
+
+static CACHE: OnceLock<CommandCache> = OnceLock::new();
+
+fn get_cache() -> &'static CommandCache {
+    CACHE.get_or_init(|| {
+        // Cache for 60 seconds by default
+        CommandCache::new(60)
     })
 }
 
@@ -57,6 +140,28 @@ fn execute_tock_command(args: Vec<&str>) -> CommandResult {
     }
 }
 
+// Execute tock command with caching for read operations
+fn execute_tock_command_cached(args: Vec<&str>, use_cache: bool) -> CommandResult {
+    if use_cache {
+        let cache_key = args.join(" ");
+        if let Some(cached_result) = get_cache().get(&cache_key) {
+            return cached_result;
+        }
+        
+        let result = execute_tock_command(args.clone());
+        if result.success {
+            get_cache().set(cache_key, CommandResult {
+                success: result.success,
+                output: result.output.clone(),
+                error: result.error.clone(),
+            });
+        }
+        result
+    } else {
+        execute_tock_command(args)
+    }
+}
+
 #[tauri::command]
 fn start_activity(project: String, description: String, time: Option<String>) -> CommandResult {
     let mut args = vec!["start", "-p", &project, "-d", &description];
@@ -66,7 +171,14 @@ fn start_activity(project: String, description: String, time: Option<String>) ->
         args.push(t);
     }
     
-    execute_tock_command(args)
+    let result = execute_tock_command(args);
+    
+    // Invalidate cache on successful write operation
+    if result.success {
+        get_cache().invalidate();
+    }
+    
+    result
 }
 
 #[tauri::command]
@@ -78,7 +190,14 @@ fn stop_activity(time: Option<String>) -> CommandResult {
         args.push(t);
     }
     
-    execute_tock_command(args)
+    let result = execute_tock_command(args);
+    
+    // Invalidate cache on successful write operation
+    if result.success {
+        get_cache().invalidate();
+    }
+    
+    result
 }
 
 #[tauri::command]
@@ -93,7 +212,14 @@ fn add_activity(project: String, description: String, start: String, end: Option
         args.push(dur);
     }
     
-    execute_tock_command(args)
+    let result = execute_tock_command(args);
+    
+    // Invalidate cache on successful write operation
+    if result.success {
+        get_cache().invalidate();
+    }
+    
+    result
 }
 
 #[tauri::command]
@@ -121,12 +247,19 @@ fn continue_activity(index: Option<u32>, description: Option<String>, project: O
         args.push(t);
     }
     
-    execute_tock_command(args)
+    let result = execute_tock_command(args);
+    
+    // Invalidate cache on successful write operation
+    if result.success {
+        get_cache().invalidate();
+    }
+    
+    result
 }
 
 #[tauri::command]
 fn get_current_activity() -> CommandResult {
-    execute_tock_command(vec!["current"])
+    execute_tock_command_cached(vec!["current"], true)
 }
 
 #[tauri::command]
@@ -140,7 +273,7 @@ fn get_recent_activities(number: Option<u32>) -> CommandResult {
         args.push(&n_str);
     }
     
-    execute_tock_command(args)
+    execute_tock_command_cached(args, true)
 }
 
 #[tauri::command]
@@ -159,7 +292,7 @@ fn get_report(date_type: String, date: Option<String>) -> CommandResult {
         _ => {}
     }
     
-    execute_tock_command(args)
+    execute_tock_command_cached(args, true)
 }
 
 #[tauri::command]
@@ -187,8 +320,119 @@ fn check_tock_installed() -> CommandResult {
 
 #[tauri::command]
 fn get_activities_for_date(date: String) -> CommandResult {
-    // Get report for specific date
-    execute_tock_command(vec!["report", "--date", &date])
+    // Get report for specific date with caching
+    execute_tock_command_cached(vec!["report", "--date", &date], true)
+}
+
+#[tauri::command]
+fn get_activities_for_month(year: u32, month: u32) -> CommandResult {
+    // Validate input parameters
+    if year < 1900 || year > 3000 {
+        return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Invalid year: {}. Year must be between 1900 and 3000.", year)),
+        };
+    }
+    
+    if month < 1 || month > 12 {
+        return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Invalid month: {}. Month must be between 1 and 12.", month)),
+        };
+    }
+    
+    // Calculate the start and end dates of the month
+    let first_day = match NaiveDate::from_ymd_opt(year as i32, month, 1) {
+        Some(date) => date,
+        None => {
+            return CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Invalid year ({}) or month ({})", year, month)),
+            };
+        }
+    };
+    
+    // Calculate last day of month by finding the first day of next month and subtracting one day
+    let (next_year, next_month) = if month == 12 {
+        (year + 1, 1)
+    } else {
+        (year, month + 1)
+    };
+    
+    let last_day = match NaiveDate::from_ymd_opt(next_year as i32, next_month, 1) {
+        Some(next_month_start) => match next_month_start.pred_opt() {
+            Some(d) => d,
+            None => {
+                return CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some("Failed to calculate last day of month".to_string()),
+                };
+            }
+        },
+        None => {
+            return CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to calculate next month date for {}-{}", next_year, next_month)),
+            };
+        }
+    };
+    
+    // Use caching for month reports
+    let cache_key = format!("month_report_{}_{}", year, month);
+    if let Some(cached_result) = get_cache().get(&cache_key) {
+        return cached_result;
+    }
+    
+    // Fetch all activities for each day in the month and aggregate
+    let mut all_outputs = Vec::new();
+    let mut current_date = first_day;
+    
+    while current_date <= last_day {
+        let date_str = current_date.format("%Y-%m-%d").to_string();
+        let result = execute_tock_command_cached(vec!["report", "--date", &date_str], true);
+        
+        if result.success && !result.output.trim().is_empty() {
+            // Add date header and the output
+            all_outputs.push(format!("=== {} ===\n{}", date_str, result.output));
+        }
+        
+        // Move to next day, break if we can't (edge case at max date)
+        current_date = match current_date.succ_opt() {
+            Some(date) => date,
+            None => {
+                // Log warning but don't fail - we've processed up to this point
+                // Use println since this is a backend warning and Tauri captures stdout
+                println!("Warning: Could not increment date beyond {}. This may indicate we've reached the maximum date value.", current_date);
+                break;
+            }
+        };
+    }
+    
+    let combined_output = if all_outputs.is_empty() {
+        String::new()
+    } else {
+        all_outputs.join("\n\n")
+    };
+    
+    let result = CommandResult {
+        success: true,
+        output: combined_output,
+        error: None,
+    };
+    
+    // Cache the result
+    get_cache().set(cache_key, CommandResult {
+        success: result.success,
+        output: result.output.clone(),
+        error: result.error.clone(),
+    });
+    
+    result
 }
 
 #[tauri::command]
@@ -549,6 +793,7 @@ pub fn run() {
             get_report,
             check_tock_installed,
             get_activities_for_date,
+            get_activities_for_month,
             save_report_to_file,
             add_favorite,
             remove_favorite,
