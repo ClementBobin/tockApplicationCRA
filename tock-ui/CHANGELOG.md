@@ -1,3 +1,10 @@
+# [1.3.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.2.0...v1.3.0) (2026-01-11)
+
+
+### Features
+
+* :zap: ([dee8608](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/dee860816dd11ce936c62a217553fddeea9a5f35))
+
 # [1.2.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.1.0...v1.2.0) (2026-01-02)
 
 
