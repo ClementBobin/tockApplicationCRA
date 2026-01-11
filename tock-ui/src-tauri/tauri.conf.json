@@ -28,7 +28,7 @@
       "csp": null
     }
   },
-"bundle": {
+  "bundle": {
     "active": true,
     "targets": "all",
     "icon": [
@@ -47,6 +47,16 @@
         "installMode": "currentUser",
         "languages": ["English"]
       }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/ClementBobin/tockApplicationCRA/releases/latest/download/latest.json"
+      ],
+      "dialog": false,
+      "pubkey": ""
     }
   }
 }
