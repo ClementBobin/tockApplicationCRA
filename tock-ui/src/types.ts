@@ -27,6 +27,28 @@ export interface ApiRoute {
   created_at?: string;
 }
 
+export interface ReportSettings {
+  id?: number;
+  auto_send_enabled: boolean;
+  selected_api_route_id?: number;
+  updated_at?: string;
+}
+
+export interface CachedProject {
+  id?: number;
+  name: string;
+  description: string;
+  source_api_route_id?: number;
+  last_synced?: string;
+}
+
+export interface CalendarCache {
+  id?: number;
+  year_month: string;
+  data: string;
+  cached_at?: string;
+}
+
 export interface TockCommands {
   startActivity: (project: string, description: string, time?: string) => Promise<CommandResult>;
   stopActivity: (time?: string) => Promise<CommandResult>;
@@ -62,4 +84,20 @@ export interface TockCommands {
   deleteApiRoute: (id: number) => Promise<CommandResult>;
   getAllApiRoutes: () => Promise<CommandResult>;
   fetchProjectsFromApi: (url: string) => Promise<CommandResult>;
+  
+  // Report Settings
+  getReportSettings: () => Promise<CommandResult>;
+  updateReportSettings: (autoSendEnabled: boolean, selectedApiRouteId?: number) => Promise<CommandResult>;
+  sendMonthlyReportToApi: (apiRouteId: number) => Promise<CommandResult>;
+  
+  // Calendar Cache
+  getCalendarCache: (yearMonth: string) => Promise<CommandResult>;
+  saveCalendarCache: (yearMonth: string, data: string) => Promise<CommandResult>;
+  clearCalendarCache: (yearMonth: string) => Promise<CommandResult>;
+  
+  // Cached Projects
+  getCachedProjects: (apiRouteId?: number) => Promise<CommandResult>;
+  syncApiProjects: (apiRouteId: number) => Promise<CommandResult>;
+  syncAllApiProjects: () => Promise<CommandResult>;
+  deleteCachedProjectsByApi: (apiRouteId: number) => Promise<CommandResult>;
 }

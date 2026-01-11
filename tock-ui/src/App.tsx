@@ -13,6 +13,7 @@ function App() {
 
   useEffect(() => {
     checkInstallation();
+    syncApiProjectsOnStartup();
   }, []);
 
   const checkInstallation = async () => {
@@ -20,6 +21,15 @@ function App() {
     setTockInstalled(result.success);
     if (!result.success) {
       setMessage({ type: "error", text: result.error || "Tock CLI not found" });
+    }
+  };
+  
+  const syncApiProjectsOnStartup = async () => {
+    // Silently sync all API projects in the background
+    try {
+      await tockCommands.syncAllApiProjects();
+    } catch (error) {
+      console.error('Failed to sync API projects on startup:', error);
     }
   };
 
