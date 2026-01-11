@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use chrono::{NaiveDate, Datelike};
 
 mod db;
-use db::{Database, FavoriteProject, ApiRoute, ReportSettings};
+use db::{Database, FavoriteProject, ApiRoute, ReportSettings, CachedProject, CalendarCache};
 
 static DB: OnceLock<Database> = OnceLock::new();
 
@@ -904,6 +904,219 @@ async fn send_monthly_report_to_api(api_route_id: i64) -> CommandResult {
         }
 }
 
+// Calendar Cache commands
+#[tauri::command]
+fn get_calendar_cache(year_month: String) -> CommandResult {
+    match get_db().get_calendar_cache(&year_month) {
+        Ok(Some(cache)) => CommandResult {
+            success: true,
+            output: cache.data,
+            error: None,
+        },
+        Ok(None) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some("No cache found".to_string()),
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to get calendar cache: {}", e)),
+        },
+    }
+}
+
+#[tauri::command]
+fn save_calendar_cache(year_month: String, data: String) -> CommandResult {
+    match get_db().save_calendar_cache(&year_month, &data) {
+        Ok(_) => CommandResult {
+            success: true,
+            output: "Calendar cache saved".to_string(),
+            error: None,
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to save calendar cache: {}", e)),
+        },
+    }
+}
+
+#[tauri::command]
+fn clear_calendar_cache(year_month: String) -> CommandResult {
+    match get_db().clear_calendar_cache(&year_month) {
+        Ok(_) => CommandResult {
+            success: true,
+            output: "Calendar cache cleared".to_string(),
+            error: None,
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to clear calendar cache: {}", e)),
+        },
+    }
+}
+
+// Cached Projects commands
+#[tauri::command]
+fn get_cached_projects(api_route_id: Option<i64>) -> CommandResult {
+    match get_db().get_cached_projects(api_route_id) {
+        Ok(projects) => {
+            match serde_json::to_string(&projects) {
+                Ok(json) => CommandResult {
+                    success: true,
+                    output: json,
+                    error: None,
+                },
+                Err(e) => CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to serialize cached projects: {}", e)),
+                },
+            }
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to get cached projects: {}", e)),
+        },
+    }
+}
+
+#[tauri::command]
+async fn sync_api_projects(api_route_id: i64) -> CommandResult {
+    // Get the API route
+    let routes = match get_db().get_all_api_routes() {
+        Ok(r) => r,
+        Err(e) => return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to get API routes: {}", e)),
+        },
+    };
+    
+    let api_route = match routes.iter().find(|r| r.id == Some(api_route_id)) {
+        Some(route) => route,
+        None => return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some("API route not found".to_string()),
+        },
+    };
+    
+    // Fetch projects from API
+    let fetch_result = fetch_projects_from_api(api_route.url.clone()).await;
+    
+    if !fetch_result.success {
+        return fetch_result;
+    }
+    
+    // Parse the projects
+    let projects_data: serde_json::Value = match serde_json::from_str(&fetch_result.output) {
+        Ok(data) => data,
+        Err(e) => return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to parse API response: {}", e)),
+        },
+    };
+    
+    // Extract projects from response
+    let projects_array = if projects_data.is_array() {
+        projects_data.as_array().unwrap()
+    } else if let Some(results) = projects_data.get("results").and_then(|r| r.as_array()) {
+        results
+    } else {
+        return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some("Invalid API response format".to_string()),
+        };
+    };
+    
+    // Convert to tuples for database insertion
+    let projects_to_save: Vec<(String, String, i64)> = projects_array
+        .iter()
+        .filter_map(|p| {
+            let name = p.get("name")?.as_str()?;
+            let description = p.get("description")?.as_str().unwrap_or("");
+            Some((name.to_string(), description.to_string(), api_route_id))
+        })
+        .collect();
+    
+    // Save to database
+    match get_db().save_cached_projects(&projects_to_save) {
+        Ok(_) => CommandResult {
+            success: true,
+            output: format!("Synced {} projects from {}", projects_to_save.len(), api_route.name),
+            error: None,
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to save projects to database: {}", e)),
+        },
+    }
+}
+
+#[tauri::command]
+async fn sync_all_api_projects() -> CommandResult {
+    let routes = match get_db().get_all_api_routes() {
+        Ok(r) => r,
+        Err(e) => return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to get API routes: {}", e)),
+        },
+    };
+    
+    let enabled_routes: Vec<_> = routes.into_iter().filter(|r| r.enabled).collect();
+    let mut synced_count = 0;
+    let mut errors = Vec::new();
+    
+    for route in enabled_routes {
+        if let Some(id) = route.id {
+            let result = sync_api_projects(id).await;
+            if result.success {
+                synced_count += 1;
+            } else {
+                errors.push(format!("{}: {}", route.name, result.error.unwrap_or_default()));
+            }
+        }
+    }
+    
+    if errors.is_empty() {
+        CommandResult {
+            success: true,
+            output: format!("Successfully synced {} API routes", synced_count),
+            error: None,
+        }
+    } else {
+        CommandResult {
+            success: synced_count > 0,
+            output: format!("Synced {} routes with {} errors", synced_count, errors.len()),
+            error: Some(errors.join("; ")),
+        }
+    }
+}
+
+#[tauri::command]
+fn delete_cached_projects_by_api(api_route_id: i64) -> CommandResult {
+    match get_db().delete_cached_projects_by_api(api_route_id) {
+        Ok(_) => CommandResult {
+            success: true,
+            output: "Cached projects deleted".to_string(),
+            error: None,
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to delete cached projects: {}", e)),
+        },
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -934,7 +1147,14 @@ pub fn run() {
             fetch_projects_from_api,
             get_report_settings,
             update_report_settings,
-            send_monthly_report_to_api
+            send_monthly_report_to_api,
+            get_calendar_cache,
+            save_calendar_cache,
+            clear_calendar_cache,
+            get_cached_projects,
+            sync_api_projects,
+            sync_all_api_projects,
+            delete_cached_projects_by_api
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
