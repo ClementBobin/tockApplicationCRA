@@ -99,15 +99,32 @@ export const HistoryTab: React.FC = () => {
 
     const newActivitiesData: { [key: string]: ActivityData } = {};
 
-      // Load activities for each day in the month from tock CLI
-      for (const day of days) {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        const result = await tockCommands.getActivitiesForDate(dateStr);
+    // Use the new bulk month fetch API
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed
+    
+    const result = await tockCommands.getActivitiesForMonth(year, month);
+    
+    if (result.success && result.output.trim()) {
+      // Parse the combined output which has format:
+      // === 2026-01-01 ===
+      // <report data>
+      //
+      // === 2026-01-02 ===
+      // <report data>
+      
+      const sections = result.output.split(/\n*===\s*(\d{4}-\d{2}-\d{2})\s*===\n*/);
+      
+      // sections will be like: ['', '2026-01-01', '<data>', '2026-01-02', '<data>', ...]
+      for (let i = 1; i < sections.length; i += 2) {
+        const dateStr = sections[i];
+        const output = sections[i + 1];
         
-        if (result.success && result.output.trim()) {
-          newActivitiesData[dateStr] = parseActivitiesOutput(result.output, dateStr);
+        if (output && output.trim()) {
+          newActivitiesData[dateStr] = parseActivitiesOutput(output, dateStr);
         }
       }
+    }
 
     setActivitiesData(newActivitiesData);
     setLoading(false);
