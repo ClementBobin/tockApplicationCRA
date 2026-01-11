@@ -93,9 +93,6 @@ export const HistoryTab: React.FC = () => {
 
   const loadActivitiesForMonth = async () => {
     setLoading(true);
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     const newActivitiesData: { [key: string]: ActivityData } = {};
 
