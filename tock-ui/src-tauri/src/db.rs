@@ -20,6 +20,14 @@ pub struct ApiRoute {
     pub created_at: String,
 }
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct ReportSettings {
+    pub id: Option<i64>,
+    pub auto_send_enabled: bool,
+    pub selected_api_route_id: Option<i64>,
+    pub updated_at: String,
+}
+
 pub struct Database {
     conn: Mutex<Connection>,
 }
@@ -75,6 +83,18 @@ impl Database {
                 url TEXT NOT NULL,
                 enabled INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+        
+        // Create report settings table
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS report_settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                auto_send_enabled INTEGER NOT NULL DEFAULT 0,
+                selected_api_route_id INTEGER,
+                updated_at TEXT NOT NULL,
+                FOREIGN KEY(selected_api_route_id) REFERENCES api_routes(id) ON DELETE SET NULL
             )",
             [],
         )?;
@@ -203,5 +223,69 @@ impl Database {
         .collect::<SqlResult<Vec<_>>>()?;
         
         Ok(routes)
+    }
+    
+    // Report Settings methods
+    pub fn get_report_settings(&self) -> SqlResult<ReportSettings> {
+        let conn = self.conn.lock().unwrap();
+        
+        // Try to get existing settings
+        let result = conn.query_row(
+            "SELECT id, auto_send_enabled, selected_api_route_id, updated_at FROM report_settings LIMIT 1",
+            [],
+            |row| {
+                Ok(ReportSettings {
+                    id: Some(row.get(0)?),
+                    auto_send_enabled: row.get::<_, i32>(1)? != 0,
+                    selected_api_route_id: row.get(2)?,
+                    updated_at: row.get(3)?,
+                })
+            }
+        );
+        
+        // If no settings exist, create default
+        match result {
+            Ok(settings) => Ok(settings),
+            Err(rusqlite::Error::QueryReturnedNoRows) => {
+                let now = chrono::Local::now().to_rfc3339();
+                conn.execute(
+                    "INSERT INTO report_settings (auto_send_enabled, selected_api_route_id, updated_at) VALUES (0, NULL, ?1)",
+                    params![now],
+                )?;
+                Ok(ReportSettings {
+                    id: Some(conn.last_insert_rowid()),
+                    auto_send_enabled: false,
+                    selected_api_route_id: None,
+                    updated_at: now,
+                })
+            },
+            Err(e) => Err(e),
+        }
+    }
+    
+    pub fn update_report_settings(&self, auto_send_enabled: bool, selected_api_route_id: Option<i64>) -> SqlResult<()> {
+        let conn = self.conn.lock().unwrap();
+        let now = chrono::Local::now().to_rfc3339();
+        
+        // Ensure settings exist
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM report_settings",
+            [],
+            |row| row.get(0),
+        )?;
+        
+        if count == 0 {
+            conn.execute(
+                "INSERT INTO report_settings (auto_send_enabled, selected_api_route_id, updated_at) VALUES (?1, ?2, ?3)",
+                params![auto_send_enabled as i32, selected_api_route_id, now],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE report_settings SET auto_send_enabled = ?1, selected_api_route_id = ?2, updated_at = ?3",
+                params![auto_send_enabled as i32, selected_api_route_id, now],
+            )?;
+        }
+        
+        Ok(())
     }
 }

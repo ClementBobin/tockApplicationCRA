@@ -118,4 +118,20 @@ export const tockCommands = {
   fetchProjectsFromApi: async (url: string): Promise<CommandResult> => {
     return await invoke("fetch_projects_from_api", { url });
   },
+  
+  // Report Settings
+  getReportSettings: async (): Promise<CommandResult> => {
+    return await invoke("get_report_settings");
+  },
+  
+  updateReportSettings: async (autoSendEnabled: boolean, selectedApiRouteId?: number): Promise<CommandResult> => {
+    return await invoke("update_report_settings", { 
+      autoSendEnabled, 
+      selectedApiRouteId: selectedApiRouteId ?? null 
+    });
+  },
+  
+  sendMonthlyReportToApi: async (apiRouteId: number): Promise<CommandResult> => {
+    return await invoke("send_monthly_report_to_api", { apiRouteId });
+  },
 };

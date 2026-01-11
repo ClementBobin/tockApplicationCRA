@@ -27,6 +27,13 @@ export interface ApiRoute {
   created_at?: string;
 }
 
+export interface ReportSettings {
+  id?: number;
+  auto_send_enabled: boolean;
+  selected_api_route_id?: number;
+  updated_at?: string;
+}
+
 export interface TockCommands {
   startActivity: (project: string, description: string, time?: string) => Promise<CommandResult>;
   stopActivity: (time?: string) => Promise<CommandResult>;
@@ -62,4 +69,9 @@ export interface TockCommands {
   deleteApiRoute: (id: number) => Promise<CommandResult>;
   getAllApiRoutes: () => Promise<CommandResult>;
   fetchProjectsFromApi: (url: string) => Promise<CommandResult>;
+  
+  // Report Settings
+  getReportSettings: () => Promise<CommandResult>;
+  updateReportSettings: (autoSendEnabled: boolean, selectedApiRouteId?: number) => Promise<CommandResult>;
+  sendMonthlyReportToApi: (apiRouteId: number) => Promise<CommandResult>;
 }

@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use chrono::{NaiveDate, Datelike};
 
 mod db;
-use db::{Database, FavoriteProject, ApiRoute};
+use db::{Database, FavoriteProject, ApiRoute, ReportSettings};
 
 static DB: OnceLock<Database> = OnceLock::new();
 
@@ -778,6 +778,139 @@ async fn fetch_projects_from_api(url: String) -> CommandResult {
     }
 }
 
+// Report Settings commands
+#[tauri::command]
+fn get_report_settings() -> CommandResult {
+    match get_db().get_report_settings() {
+        Ok(settings) => {
+            match serde_json::to_string(&settings) {
+                Ok(json) => CommandResult {
+                    success: true,
+                    output: json,
+                    error: None,
+                },
+                Err(e) => CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to serialize report settings: {}", e)),
+                },
+            }
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to get report settings: {}", e)),
+        },
+    }
+}
+
+#[tauri::command]
+fn update_report_settings(auto_send_enabled: bool, selected_api_route_id: Option<i64>) -> CommandResult {
+    match get_db().update_report_settings(auto_send_enabled, selected_api_route_id) {
+        Ok(_) => CommandResult {
+            success: true,
+            output: "Report settings updated".to_string(),
+            error: None,
+        },
+        Err(e) => CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to update report settings: {}", e)),
+        },
+    }
+}
+
+#[tauri::command]
+async fn send_monthly_report_to_api(api_route_id: i64) -> CommandResult {
+    // Get the API route
+    let routes = match get_db().get_all_api_routes() {
+        Ok(r) => r,
+        Err(e) => return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to get API routes: {}", e)),
+        },
+    };
+    
+    let api_route = match routes.iter().find(|r| r.id == Some(api_route_id)) {
+        Some(route) => route,
+        None => return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some("API route not found".to_string()),
+        },
+    };
+    
+    // Get current month's report
+    let now = chrono::Local::now();
+    let year = now.year() as u32;
+    let month = now.month();
+    
+    let report_result = get_activities_for_month(year, month);
+    
+    if !report_result.success {
+        return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Failed to generate monthly report: {}", report_result.error.unwrap_or_default())),
+        };
+    }
+    
+    // Prepare JSON payload
+    let payload = serde_json::json!({
+        "year": year,
+        "month": month,
+        "report": report_result.output,
+        "generated_at": chrono::Local::now().to_rfc3339(),
+    });
+    
+    // Send to API
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(30))
+        .build() {
+            Ok(c) => c,
+            Err(e) => return CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to create HTTP client: {}", e)),
+            },
+        };
+    
+    match client.post(&api_route.url)
+        .json(&payload)
+        .send()
+        .await {
+            Ok(response) => {
+                let status = response.status();
+                match response.text().await {
+                    Ok(text) => CommandResult {
+                        success: status.is_success(),
+                        output: if status.is_success() {
+                            format!("Monthly report sent successfully to {}. Response: {}", api_route.name, text)
+                        } else {
+                            text
+                        },
+                        error: if !status.is_success() {
+                            Some(format!("API returned status {}", status))
+                        } else {
+                            None
+                        },
+                    },
+                    Err(e) => CommandResult {
+                        success: false,
+                        output: String::new(),
+                        error: Some(format!("Failed to read response: {}", e)),
+                    },
+                }
+            },
+            Err(e) => CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to send report to API: {}", e)),
+            },
+        }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -803,7 +936,10 @@ pub fn run() {
             update_api_route,
             delete_api_route,
             get_all_api_routes,
-            fetch_projects_from_api
+            fetch_projects_from_api,
+            get_report_settings,
+            update_report_settings,
+            send_monthly_report_to_api
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
