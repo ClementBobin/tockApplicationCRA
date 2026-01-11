@@ -23,21 +23,18 @@ jobs:
             node_version: '20'
             target: 'x86_64-unknown-linux-gnu'
             os_name: 'linux'
-            shell: bash
           - platform: 'windows-latest'
             args: ''
             artifact_name: 'windows'
             node_version: '20'
             target: 'x86_64-pc-windows-msvc'
             os_name: 'windows'
-            shell: powershell
           - platform: 'macos-latest'
             args: ''
             artifact_name: 'macos'
             node_version: '20'
             target: 'x86_64-apple-darwin'
             os_name: 'macos'
-            shell: bash
 
     runs-on: ${{ matrix.platform }}
 
@@ -76,7 +73,6 @@ jobs:
 
       - name: Install Windows dependencies
         if: matrix.platform == 'windows-latest'
-        shell: powershell
         run: |
           choco install -y visualstudio2022buildtools
           choco install -y wixtoolset
@@ -107,20 +103,18 @@ jobs:
       - name: Get package version
         id: package-version
         working-directory: ./tock-ui
-        shell: ${{ matrix.shell }}
         run: |
-          if ("${{ matrix.shell }}" -eq "powershell") {
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
             $version = (Get-Content package.json | ConvertFrom-Json).version
             Write-Host "version=$version" >> $env:GITHUB_OUTPUT
-          } else {
+          else
             VERSION=$(node -p "require('./package.json').version")
             echo "version=$VERSION" >> $GITHUB_OUTPUT
-          }
+          fi
 
       - name: Prepare artifacts for upload
-        shell: ${{ matrix.shell }}
         run: |
-          if ("${{ matrix.shell }}" -eq "powershell") {
+          if [ "${{ matrix.platform }}" = "windows-latest" ]; then
             # Windows PowerShell
             New-Item -ItemType Directory -Force -Path "artifacts\${{ matrix.os_name }}"
             
@@ -130,7 +124,7 @@ jobs:
             
             $version = "${{ steps.package-version.outputs.version }}"
             Set-Content -Path "artifacts/version.txt" -Value $version
-          } else {
+          else
             # Linux/Mac bash
             mkdir -p artifacts/${{ matrix.os_name }}
             
@@ -143,7 +137,7 @@ jobs:
             fi
             
             echo "${{ steps.package-version.outputs.version }}" > artifacts/version.txt
-          }
+          fi
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
