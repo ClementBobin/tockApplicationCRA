@@ -7,6 +7,7 @@ use std::sync::OnceLock;
 use std::sync::Mutex;
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
+use chrono::{NaiveDate, Datelike};
 
 mod db;
 use db::{Database, FavoriteProject, ApiRoute};
@@ -309,67 +310,62 @@ fn get_activities_for_date(date: String) -> CommandResult {
 
 #[tauri::command]
 fn get_activities_for_month(year: u32, month: u32) -> CommandResult {
-    // Calculate the start and end dates of the month
-    use chrono::{NaiveDate, Datelike};
+    // Validate input parameters
+    if year < 1900 || year > 3000 {
+        return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Invalid year: {}. Year must be between 1900 and 3000.", year)),
+        };
+    }
     
+    if month < 1 || month > 12 {
+        return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(format!("Invalid month: {}. Month must be between 1 and 12.", month)),
+        };
+    }
+    
+    // Calculate the start and end dates of the month
     let first_day = match NaiveDate::from_ymd_opt(year as i32, month, 1) {
         Some(date) => date,
         None => {
             return CommandResult {
                 success: false,
                 output: String::new(),
-                error: Some("Invalid year or month".to_string()),
+                error: Some(format!("Invalid year ({}) or month ({})", year, month)),
             };
         }
     };
     
-    // Get the last day of the month
-    let last_day = if month == 12 {
-        match NaiveDate::from_ymd_opt(year as i32 + 1, 1, 1) {
-            Some(date) => match date.pred_opt() {
-                Some(d) => d,
-                None => {
-                    return CommandResult {
-                        success: false,
-                        output: String::new(),
-                        error: Some("Failed to calculate last day of December".to_string()),
-                    };
-                }
-            },
-            None => {
-                return CommandResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some("Failed to calculate next year's date".to_string()),
-                };
-            }
-        }
+    // Calculate last day of month by finding the first day of next month and subtracting one day
+    let (next_year, next_month) = if month == 12 {
+        (year + 1, 1)
     } else {
-        match NaiveDate::from_ymd_opt(year as i32, month + 1, 1) {
-            Some(date) => match date.pred_opt() {
-                Some(d) => d,
-                None => {
-                    return CommandResult {
-                        success: false,
-                        output: String::new(),
-                        error: Some("Failed to calculate last day of month".to_string()),
-                    };
-                }
-            },
+        (year, month + 1)
+    };
+    
+    let last_day = match NaiveDate::from_ymd_opt(next_year as i32, next_month, 1) {
+        Some(next_month_start) => match next_month_start.pred_opt() {
+            Some(d) => d,
             None => {
                 return CommandResult {
                     success: false,
                     output: String::new(),
-                    error: Some("Failed to calculate next month's date".to_string()),
+                    error: Some("Failed to calculate last day of month".to_string()),
                 };
             }
+        },
+        None => {
+            return CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to calculate next month date for {}-{}", next_year, next_month)),
+            };
         }
     };
     
-    let start_date_str = first_day.format("%Y-%m-%d").to_string();
-    let end_date_str = last_day.format("%Y-%m-%d").to_string();
-    
-    // Generate a single report for the date range
     // Use caching for month reports
     let cache_key = format!("month_report_{}_{}", year, month);
     if let Some(cached_result) = get_cache().get(&cache_key) {
@@ -393,8 +389,9 @@ fn get_activities_for_month(year: u32, month: u32) -> CommandResult {
         current_date = match current_date.succ_opt() {
             Some(date) => date,
             None => {
-                // This should never happen for reasonable dates, but handle gracefully
-                eprintln!("Warning: Could not increment date beyond {}", current_date);
+                // Log warning but don't fail - we've processed up to this point
+                // Use println since this is a backend warning and Tauri captures stdout
+                println!("Warning: Could not increment date beyond {}. This may indicate we've reached the maximum date value.", current_date);
                 break;
             }
         };

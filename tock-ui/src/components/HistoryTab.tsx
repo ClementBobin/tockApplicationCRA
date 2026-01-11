@@ -25,6 +25,10 @@ export const HistoryTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
+  // Date separator format used by the backend
+  // Format: === YYYY-MM-DD ===
+  const DATE_SEPARATOR_REGEX = /\n*===\s*(\d{4}-\d{2}-\d{2})\s*===\n*/;
+
   // Color palette for activities
   const colorPalette = [
     '#94a3b8', // slate-400
@@ -103,14 +107,14 @@ export const HistoryTab: React.FC = () => {
     const result = await tockCommands.getActivitiesForMonth(year, month);
     
     if (result.success && result.output.trim()) {
-      // Parse the combined output which has format:
+      // Parse the combined output which has format defined by DATE_SEPARATOR_REGEX:
       // === 2026-01-01 ===
       // <report data>
       //
       // === 2026-01-02 ===
       // <report data>
       
-      const sections = result.output.split(/\n*===\s*(\d{4}-\d{2}-\d{2})\s*===\n*/);
+      const sections = result.output.split(DATE_SEPARATOR_REGEX);
       
       // sections will be like: ['', '2026-01-01', '<data>', '2026-01-02', '<data>', ...]
       for (let i = 1; i < sections.length; i += 2) {
