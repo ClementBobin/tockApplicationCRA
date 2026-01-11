@@ -67,6 +67,10 @@ export const tockCommands = {
     return await invoke("get_activities_for_date", { date });
   },
 
+  getActivitiesForMonth: async (year: number, month: number): Promise<CommandResult> => {
+    return await invoke("get_activities_for_month", { year, month });
+  },
+
   saveReportToFile: async (
     dateType: string,
     date?: string,
@@ -113,5 +117,51 @@ export const tockCommands = {
 
   fetchProjectsFromApi: async (url: string): Promise<CommandResult> => {
     return await invoke("fetch_projects_from_api", { url });
+  },
+  
+  // Report Settings
+  getReportSettings: async (): Promise<CommandResult> => {
+    return await invoke("get_report_settings");
+  },
+  
+  updateReportSettings: async (autoSendEnabled: boolean, selectedApiRouteId?: number): Promise<CommandResult> => {
+    return await invoke("update_report_settings", { 
+      autoSendEnabled, 
+      selectedApiRouteId: selectedApiRouteId ?? null 
+    });
+  },
+  
+  sendMonthlyReportToApi: async (apiRouteId: number): Promise<CommandResult> => {
+    return await invoke("send_monthly_report_to_api", { apiRouteId });
+  },
+  
+  // Calendar Cache
+  getCalendarCache: async (yearMonth: string): Promise<CommandResult> => {
+    return await invoke("get_calendar_cache", { yearMonth });
+  },
+  
+  saveCalendarCache: async (yearMonth: string, data: string): Promise<CommandResult> => {
+    return await invoke("save_calendar_cache", { yearMonth, data });
+  },
+  
+  clearCalendarCache: async (yearMonth: string): Promise<CommandResult> => {
+    return await invoke("clear_calendar_cache", { yearMonth });
+  },
+  
+  // Cached Projects
+  getCachedProjects: async (apiRouteId?: number): Promise<CommandResult> => {
+    return await invoke("get_cached_projects", { apiRouteId: apiRouteId ?? null });
+  },
+  
+  syncApiProjects: async (apiRouteId: number): Promise<CommandResult> => {
+    return await invoke("sync_api_projects", { apiRouteId });
+  },
+  
+  syncAllApiProjects: async (): Promise<CommandResult> => {
+    return await invoke("sync_all_api_projects");
+  },
+  
+  deleteCachedProjectsByApi: async (apiRouteId: number): Promise<CommandResult> => {
+    return await invoke("delete_cached_projects_by_api", { apiRouteId });
   },
 };

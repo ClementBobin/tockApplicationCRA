@@ -3,6 +3,8 @@ import { tockCommands } from '../api';
 import { Download, Calendar, CalendarRange, FolderOpen } from 'lucide-react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { ApiRouteManager } from './ApiRouteManager';
+import { ReportApiSender } from './ReportApiSender';
+import { UpdateChecker } from './UpdateChecker';
 
 interface SettingsTabProps {
   showMessage: (type: 'success' | 'error', text: string) => void;
@@ -218,6 +220,12 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({ showMessage }) => {
           </div>
         </div>
       </div>
+
+      {/* Application Updates */}
+      <UpdateChecker showMessage={showMessage} />
+
+      {/* Monthly Report API Sender */}
+      <ReportApiSender showMessage={showMessage} />
 
       {/* API Route Manager */}
       <ApiRouteManager showMessage={showMessage} />

@@ -64,11 +64,17 @@ export const ApiRouteManager: React.FC<ApiRouteManagerProps> = ({ showMessage })
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Are you sure you want to delete this API route?')) return;
+    if (!confirm('Are you sure you want to delete this API route? This will also delete all cached projects from this API.')) return;
+
+    // Delete cached projects first
+    const deleteCacheResult = await tockCommands.deleteCachedProjectsByApi(id);
+    if (!deleteCacheResult.success) {
+      console.warn('Failed to delete cached projects:', deleteCacheResult.error);
+    }
 
     const result = await tockCommands.deleteApiRoute(id);
     if (result.success) {
-      showMessage('success', 'API route deleted successfully');
+      showMessage('success', 'API route and cached projects deleted successfully');
       loadRoutes();
     } else {
       showMessage('error', result.error || 'Failed to delete route');

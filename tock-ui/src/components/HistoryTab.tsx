@@ -25,6 +25,10 @@ export const HistoryTab: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
 
+  // Date separator format used by the backend
+  // Format: === YYYY-MM-DD ===
+  const DATE_SEPARATOR_REGEX = /\n*===\s*(\d{4}-\d{2}-\d{2})\s*===\n*/;
+
   // Color palette for activities
   const colorPalette = [
     '#94a3b8', // slate-400
@@ -91,26 +95,64 @@ export const HistoryTab: React.FC = () => {
     return { date: dateStr, activities, colors };
   };
 
-  const loadActivitiesForMonth = async () => {
+  const loadActivitiesForMonth = async (useCache: boolean = true) => {
     setLoading(true);
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth() + 1; // JavaScript months are 0-indexed
+    const yearMonth = `${year}-${String(month).padStart(2, '0')}`;
+
+    // Try to load from cache first if useCache is true
+    if (useCache) {
+      const cacheResult = await tockCommands.getCalendarCache(yearMonth);
+      if (cacheResult.success) {
+        try {
+          const cachedData = JSON.parse(cacheResult.output);
+          setActivitiesData(cachedData);
+          setLoading(false);
+          return;
+        } catch (e) {
+          console.error('Failed to parse calendar cache:', e);
+          // Continue to fetch fresh data
+        }
+      }
+    }
 
     const newActivitiesData: { [key: string]: ActivityData } = {};
 
-      // Load activities for each day in the month from tock CLI
-      for (const day of days) {
-        const dateStr = format(day, 'yyyy-MM-dd');
-        const result = await tockCommands.getActivitiesForDate(dateStr);
+    // Use the new bulk month fetch API
+    const result = await tockCommands.getActivitiesForMonth(year, month);
+    
+    if (result.success && result.output.trim()) {
+      // Parse the combined output which has format defined by DATE_SEPARATOR_REGEX:
+      // === 2026-01-01 ===
+      // <report data>
+      //
+      // === 2026-01-02 ===
+      // <report data>
+      
+      const sections = result.output.split(DATE_SEPARATOR_REGEX);
+      
+      // sections will be like: ['', '2026-01-01', '<data>', '2026-01-02', '<data>', ...]
+      // Ensure we have pairs of (date, data) by checking bounds
+      for (let i = 1; i + 1 < sections.length; i += 2) {
+        const dateStr = sections[i];
+        const output = sections[i + 1];
         
-        if (result.success && result.output.trim()) {
-          newActivitiesData[dateStr] = parseActivitiesOutput(result.output, dateStr);
+        if (dateStr && output && output.trim()) {
+          newActivitiesData[dateStr] = parseActivitiesOutput(output, dateStr);
         }
       }
+      
+      // Save to cache
+      await tockCommands.saveCalendarCache(yearMonth, JSON.stringify(newActivitiesData));
+    }
 
     setActivitiesData(newActivitiesData);
     setLoading(false);
+  };
+  
+  const handleRefresh = async () => {
+    await loadActivitiesForMonth(false); // Force refresh, bypass cache
   };
 
   const loadFavorites = async () => {
@@ -175,9 +217,21 @@ export const HistoryTab: React.FC = () => {
           >
             <ChevronLeft size={20} className="text-slate-600" />
           </button>
-          <h3 className="text-lg font-semibold text-slate-800">
-            {format(currentMonth, 'MMMM yyyy')}
-          </h3>
+          <div className="flex items-center gap-2">
+            <h3 className="text-lg font-semibold text-slate-800">
+              {format(currentMonth, 'MMMM yyyy')}
+            </h3>
+            <button
+              onClick={handleRefresh}
+              disabled={loading}
+              className="p-2 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-50"
+              title="Refresh calendar data"
+            >
+              <svg className={`w-4 h-4 text-slate-600 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+              </svg>
+            </button>
+          </div>
           <button
             onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
             className="p-2 hover:bg-slate-100 rounded-lg transition-colors"
