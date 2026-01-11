@@ -326,23 +326,41 @@ fn get_activities_for_month(year: u32, month: u32) -> CommandResult {
     // Get the last day of the month
     let last_day = if month == 12 {
         match NaiveDate::from_ymd_opt(year as i32 + 1, 1, 1) {
-            Some(date) => date.pred_opt().unwrap(),
+            Some(date) => match date.pred_opt() {
+                Some(d) => d,
+                None => {
+                    return CommandResult {
+                        success: false,
+                        output: String::new(),
+                        error: Some("Failed to calculate last day of December".to_string()),
+                    };
+                }
+            },
             None => {
                 return CommandResult {
                     success: false,
                     output: String::new(),
-                    error: Some("Failed to calculate last day of month".to_string()),
+                    error: Some("Failed to calculate next year's date".to_string()),
                 };
             }
         }
     } else {
         match NaiveDate::from_ymd_opt(year as i32, month + 1, 1) {
-            Some(date) => date.pred_opt().unwrap(),
+            Some(date) => match date.pred_opt() {
+                Some(d) => d,
+                None => {
+                    return CommandResult {
+                        success: false,
+                        output: String::new(),
+                        error: Some("Failed to calculate last day of month".to_string()),
+                    };
+                }
+            },
             None => {
                 return CommandResult {
                     success: false,
                     output: String::new(),
-                    error: Some("Failed to calculate last day of month".to_string()),
+                    error: Some("Failed to calculate next month's date".to_string()),
                 };
             }
         }
@@ -371,9 +389,14 @@ fn get_activities_for_month(year: u32, month: u32) -> CommandResult {
             all_outputs.push(format!("=== {} ===\n{}", date_str, result.output));
         }
         
+        // Move to next day, break if we can't (edge case at max date)
         current_date = match current_date.succ_opt() {
             Some(date) => date,
-            None => break,
+            None => {
+                // This should never happen for reasonable dates, but handle gracefully
+                eprintln!("Warning: Could not increment date beyond {}", current_date);
+                break;
+            }
         };
     }
     
