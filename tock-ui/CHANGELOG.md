@@ -1,3 +1,26 @@
+# [1.4.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.3.0...v1.4.0) (2026-01-12)
+
+
+### Bug Fixes
+
+* address code review feedback ([9925596](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/9925596e375cb52ec2cb5e4df3987d181ac255fe))
+* remove hardcoded repository values and update dependencies ([d06290a](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/d06290af883ad6fad5343c782f80b7fc0f43486d))
+
+
+### Features
+
+* add semantic-release plugins to package.json ([a622447](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/a62244794eb93afd6f92a4654abe9ef3b8ece0da))
+* add version detection and autoupdate JSON generation before build ([6709139](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/6709139e4e06ff9726316b21ac093b8989d0b95d))
+* apply version updates to semantic-release job ([9e92c28](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/9e92c281f449d87016c860d4a7c52ce170951400))
+* build workflow for cross-platform artifact handling ([93070be](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/93070beadfb98134b9361e87f9197d40496852ce))
+* Enhance CI with macOS support and update JSON creation ([5eaca5d](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/5eaca5dbfd1ccd857c77d856ae155766d964b2da))
+* Enhance version file verification for cross-platform ([3ed0950](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/3ed09501bc80e71d5c750035e7cdbaeec0844795))
+* Fix formatting in README.md ([b9d12fa](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/b9d12fa681985e0f8ecd4c652d18a1d5dd765e2c))
+* Refactor CI workflow for package versioning and artifacts ([edb33de](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/edb33de2e4c6e2275953b0cf773c8af3d66bbf49))
+* Refactor shell commands in build.yml ([f4f1d7d](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/f4f1d7dac0383696578e975c3fcd7cc0e67e48be))
+* Refactor version verification in build workflow ([363284f](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/363284f9862f4f5b6c757f98f1d8ebc82becd911))
+* Upgrade libwebkit2gtk version in build.yml ([bd08649](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/bd08649fb9d2643f0824f18f687a1b4395648ba7))
+
 # [1.3.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.2.0...v1.3.0) (2026-01-11)
 
 
