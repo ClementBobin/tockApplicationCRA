@@ -141,7 +141,9 @@ jobs:
 
       always() &&
 
-      (needs.prepare-version.result == 'success' || needs.prepare-version.result == 'skipped')
+      (needs.prepare-version.result == 'success' || needs.prepare-version.result == 'skipped') &&
+
+      !cancelled()
 
     strategy:
 
