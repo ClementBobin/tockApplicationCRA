@@ -352,10 +352,56 @@ fn check_tock_installed() -> CommandResult {
     }
 }
 
-#[tauri::command]
-fn auto_install_tock() -> CommandResult {
+// Helper function to install tock via Go
+fn install_tock_via_go(error_msg: &str) -> CommandResult {
     const GO_INSTALL_SUCCESS_MSG: &str = "Tock installed successfully via Go. You may need to restart the application or add Go's bin directory to your PATH.";
     
+    // First check if Go is installed
+    let go_check = Command::new("go")
+        .arg("version")
+        .output();
+    
+    if go_check.is_err() {
+        return CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some(error_msg.to_string()),
+        };
+    }
+
+    // Install tock via go install
+    let install_result = Command::new("go")
+        .args(&["install", "github.com/kriuchkov/tock/cmd/tock@latest"])
+        .output();
+    
+    match install_result {
+        Ok(output) if output.status.success() => {
+            CommandResult {
+                success: true,
+                output: GO_INSTALL_SUCCESS_MSG.to_string(),
+                error: None,
+            }
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+            CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to install tock: {}", stderr)),
+            }
+        }
+        Err(e) => {
+            CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some(format!("Failed to execute go install: {}", e)),
+            }
+        }
+    }
+}
+
+#[tauri::command]
+fn auto_install_tock() -> CommandResult {
     // First check if tock is already installed
     let check_result = check_tock_installed();
     if check_result.success {
@@ -444,98 +490,14 @@ fn auto_install_tock() -> CommandResult {
     {
         // Try installing via Go on Windows
         println!("Detected Windows - attempting to install via Go");
-        
-        // First check if Go is installed
-        let go_check = Command::new("go")
-            .arg("version")
-            .output();
-        
-        if go_check.is_err() {
-            return CommandResult {
-                success: false,
-                output: String::new(),
-                error: Some("Go is not installed. Please install Go first from https://go.dev/doc/install".to_string()),
-            };
-        }
-
-        // Install tock via go install
-        let install_result = Command::new("go")
-            .args(&["install", "github.com/kriuchkov/tock/cmd/tock@latest"])
-            .output();
-        
-        match install_result {
-            Ok(output) if output.status.success() => {
-                CommandResult {
-                    success: true,
-                    output: GO_INSTALL_SUCCESS_MSG.to_string(),
-                    error: None,
-                }
-            }
-            Ok(output) => {
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                CommandResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(format!("Failed to install tock: {}", stderr)),
-                }
-            }
-            Err(e) => {
-                CommandResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(format!("Failed to execute go install: {}", e)),
-                }
-            }
-        }
+        install_tock_via_go("Go is not installed. Please install Go first from https://go.dev/doc/install")
     }
 
     #[cfg(target_os = "linux")]
     {
         // Try installing via Go on Linux
         println!("Detected Linux - attempting to install via Go");
-        
-        // First check if Go is installed
-        let go_check = Command::new("go")
-            .arg("version")
-            .output();
-        
-        if go_check.is_err() {
-            return CommandResult {
-                success: false,
-                output: String::new(),
-                error: Some("Go is not installed. Please install Go first using your package manager or from https://go.dev/doc/install".to_string()),
-            };
-        }
-
-        // Install tock via go install
-        let install_result = Command::new("go")
-            .args(&["install", "github.com/kriuchkov/tock/cmd/tock@latest"])
-            .output();
-        
-        match install_result {
-            Ok(output) if output.status.success() => {
-                CommandResult {
-                    success: true,
-                    output: GO_INSTALL_SUCCESS_MSG.to_string(),
-                    error: None,
-                }
-            }
-            Ok(output) => {
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                CommandResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(format!("Failed to install tock: {}", stderr)),
-                }
-            }
-            Err(e) => {
-                CommandResult {
-                    success: false,
-                    output: String::new(),
-                    error: Some(format!("Failed to execute go install: {}", e)),
-                }
-            }
-        }
+        install_tock_via_go("Go is not installed. Please install Go first using your package manager or from https://go.dev/doc/install")
     }
 
     #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
