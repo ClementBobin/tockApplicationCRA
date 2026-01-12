@@ -96,18 +96,36 @@ jobs:
           name: version-files
           path: .
 
-      - name: Verify version files
+      - name: Verify version files (Cross-platform)
         if: needs.prepare-version.outputs.has_new_version == 'true'
         run: |
           echo "Checking updated version files..."
           echo "=== Directory Contents ==="
-          ls -la tock-ui/
+          # Cross-platform directory listing
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            dir tock-ui/
+          else
+            ls -la tock-ui/
+          fi
           echo "=== package.json version ==="
-          grep version tock-ui/package.json
+          # Use cross-platform grep or findstr on Windows
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            findstr "version" tock-ui/package.json
+          else
+            grep version tock-ui/package.json
+          fi
           echo "=== Cargo.toml version ==="
-          grep "^version" tock-ui/src-tauri/Cargo.toml
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            findstr "^version" tock-ui/src-tauri/Cargo.toml
+          else
+            grep "^version" tock-ui/src-tauri/Cargo.toml
+          fi
           echo "=== tauri.conf.json version ==="
-          grep version tock-ui/src-tauri/tauri.conf.json
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            findstr "version" tock-ui/src-tauri/tauri.conf.json
+          else
+            grep version tock-ui/src-tauri/tauri.conf.json
+          fi
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -146,6 +164,7 @@ jobs:
         run: |
           choco install -y visualstudio2022buildtools
           choco install -y visualstudio2022-workload-vctools
+        shell: pwsh
 
       - name: Cache Rust dependencies
         uses: swatinem/rust-cache@v2
