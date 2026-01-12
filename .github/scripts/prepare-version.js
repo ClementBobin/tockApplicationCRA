@@ -128,8 +128,12 @@ function updateTauriConfig(version) {
 function generateUpdateJson(version) {
   log(`Generating latest.json for version ${version}`);
   
-  const repoOwner = process.env.GITHUB_REPOSITORY?.split('/')[0] || 'ClementBobin';
-  const repoName = process.env.GITHUB_REPOSITORY?.split('/')[1] || 'tockApplicationCRA';
+  const repository = process.env.GITHUB_REPOSITORY;
+  if (!repository) {
+    throw new Error('GITHUB_REPOSITORY environment variable is not set');
+  }
+  
+  const [repoOwner, repoName] = repository.split('/');
   
   // Note: The actual URLs will need to match the artifact names produced by Tauri build
   // For Tauri updater, the files should be the signed update bundles (.tar.gz or .zip)

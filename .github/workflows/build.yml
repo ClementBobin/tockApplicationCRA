@@ -321,13 +321,7 @@ jobs:
 
     runs-on: ubuntu-latest
 
-    if: |
-
-      github.event_name == 'push' && 
-
-      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') &&
-
-      needs.prepare-version.outputs.has_new_version == 'true'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master') && needs.prepare-version.outputs.has_new_version == 'true'
 
 
 
