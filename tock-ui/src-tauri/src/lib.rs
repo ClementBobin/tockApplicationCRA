@@ -319,6 +319,200 @@ fn check_tock_installed() -> CommandResult {
 }
 
 #[tauri::command]
+fn auto_install_tock() -> CommandResult {
+    // First check if tock is already installed
+    let check_result = check_tock_installed();
+    if check_result.success {
+        return CommandResult {
+            success: true,
+            output: "Tock is already installed".to_string(),
+            error: None,
+        };
+    }
+
+    // Detect the operating system
+    #[cfg(target_os = "macos")]
+    {
+        // Try installing via Homebrew on macOS
+        println!("Detected macOS - attempting to install via Homebrew");
+        
+        // First check if Homebrew is installed
+        let brew_check = Command::new("brew")
+            .arg("--version")
+            .output();
+        
+        if brew_check.is_err() {
+            return CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some("Homebrew is not installed. Please install Homebrew first from https://brew.sh".to_string()),
+            };
+        }
+
+        // Add the tap
+        let tap_result = Command::new("brew")
+            .args(&["tap", "kriuchkov/tap"])
+            .output();
+        
+        match tap_result {
+            Ok(tap_output) if !tap_output.status.success() => {
+                let stderr = String::from_utf8_lossy(&tap_output.stderr).to_string();
+                return CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to add Homebrew tap: {}", stderr)),
+                };
+            }
+            Err(e) => {
+                return CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to execute brew tap: {}", e)),
+                };
+            }
+            _ => {}
+        }
+
+        // Install tock
+        let install_result = Command::new("brew")
+            .args(&["install", "tock"])
+            .output();
+        
+        match install_result {
+            Ok(output) if output.status.success() => {
+                CommandResult {
+                    success: true,
+                    output: "Tock installed successfully via Homebrew".to_string(),
+                    error: None,
+                }
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to install tock: {}", stderr)),
+                }
+            }
+            Err(e) => {
+                CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to execute brew install: {}", e)),
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        // Try installing via Go on Windows
+        println!("Detected Windows - attempting to install via Go");
+        
+        // First check if Go is installed
+        let go_check = Command::new("go")
+            .arg("version")
+            .output();
+        
+        if go_check.is_err() {
+            return CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some("Go is not installed. Please install Go first from https://go.dev/doc/install".to_string()),
+            };
+        }
+
+        // Install tock via go install
+        let install_result = Command::new("go")
+            .args(&["install", "github.com/kriuchkov/tock/cmd/tock@latest"])
+            .output();
+        
+        match install_result {
+            Ok(output) if output.status.success() => {
+                CommandResult {
+                    success: true,
+                    output: "Tock installed successfully via Go. You may need to restart the application or add Go's bin directory to your PATH.".to_string(),
+                    error: None,
+                }
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to install tock: {}", stderr)),
+                }
+            }
+            Err(e) => {
+                CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to execute go install: {}", e)),
+                }
+            }
+        }
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        // Try installing via Go on Linux
+        println!("Detected Linux - attempting to install via Go");
+        
+        // First check if Go is installed
+        let go_check = Command::new("go")
+            .arg("version")
+            .output();
+        
+        if go_check.is_err() {
+            return CommandResult {
+                success: false,
+                output: String::new(),
+                error: Some("Go is not installed. Please install Go first using your package manager or from https://go.dev/doc/install".to_string()),
+            };
+        }
+
+        // Install tock via go install
+        let install_result = Command::new("go")
+            .args(&["install", "github.com/kriuchkov/tock/cmd/tock@latest"])
+            .output();
+        
+        match install_result {
+            Ok(output) if output.status.success() => {
+                CommandResult {
+                    success: true,
+                    output: "Tock installed successfully via Go. You may need to restart the application or add Go's bin directory to your PATH.".to_string(),
+                    error: None,
+                }
+            }
+            Ok(output) => {
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to install tock: {}", stderr)),
+                }
+            }
+            Err(e) => {
+                CommandResult {
+                    success: false,
+                    output: String::new(),
+                    error: Some(format!("Failed to execute go install: {}", e)),
+                }
+            }
+        }
+    }
+
+    #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
+    {
+        CommandResult {
+            success: false,
+            output: String::new(),
+            error: Some("Automatic installation is not supported on this operating system. Please install tock manually.".to_string()),
+        }
+    }
+}
+
+#[tauri::command]
 fn get_activities_for_date(date: String) -> CommandResult {
     // Get report for specific date with caching
     execute_tock_command_cached(vec!["report", "--date", &date], true)
@@ -1133,6 +1327,7 @@ pub fn run() {
             get_recent_activities,
             get_report,
             check_tock_installed,
+            auto_install_tock,
             get_activities_for_date,
             get_activities_for_month,
             save_report_to_file,
