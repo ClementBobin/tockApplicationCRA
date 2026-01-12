@@ -51,7 +51,7 @@ function App() {
               brew tap kriuchkov/tap
               brew install tock
 
-              # Go Install
+              # Go Install (windows)
               https://go.dev/doc/install
               go install github.com/kriuchkov/tock/cmd/tock@latest
 
