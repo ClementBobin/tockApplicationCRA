@@ -246,8 +246,15 @@ jobs:
           echo "=== Downloaded files structure ==="
           find downloaded-version-files -type f | sort
           echo ""
-          echo "=== Checking package.json version ==="
-          find downloaded-version-files -name "package.json" -type f -exec sh -c 'echo "Found at: $1"; cat "$1" | grep -A 1 '"'"'version'"'"'' sh {} \;
+          echo "=== Checking package.json ==="
+          PACKAGE_JSON_PATH=$(find downloaded-version-files -name "package.json" -type f | head -1)
+          if [ -n "$PACKAGE_JSON_PATH" ] && [ -f "$PACKAGE_JSON_PATH" ]; then
+            echo "Found package.json at: $PACKAGE_JSON_PATH"
+            echo "Content:"
+            cat "$PACKAGE_JSON_PATH" | grep -A 1 '"version"'
+          else
+            echo "ERROR: package.json not found!"
+          fi
 
       - name: Create update JSON
         shell: bash
@@ -258,11 +265,19 @@ jobs:
           
           if [ -z "$PACKAGE_JSON_PATH" ] || [ ! -f "$PACKAGE_JSON_PATH" ]; then
             echo "ERROR: Could not find package.json in downloaded files"
+            find downloaded-version-files -type f
             exit 1
           fi
           
           echo "Found package.json at: $PACKAGE_JSON_PATH"
-          VERSION=$(node -p "require('$PACKAGE_JSON_PATH').version")
+          
+          # Use jq to extract version if available, otherwise use grep/sed
+          if command -v jq &> /dev/null; then
+            VERSION=$(jq -r '.version' "$PACKAGE_JSON_PATH")
+          else
+            VERSION=$(grep '"version"' "$PACKAGE_JSON_PATH" | sed 's/.*"version": "\([^"]*\)".*/\1/')
+          fi
+          
           echo "Creating update JSON for version: $VERSION"
           
           # Create dist directory
