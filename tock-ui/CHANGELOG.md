@@ -1,3 +1,14 @@
+# [1.5.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.4.0...v1.5.0) (2026-01-12)
+
+
+### Features
+
+* Add step to apply and verify updated version files ([7d181a1](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/7d181a17191a00ce31162ed891522325b39ef63a))
+* Enhance version update process with checks and logs ([7f03bcf](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/7f03bcf6de2fad4c3ee17bbfb21be858a0fc0c61))
+* Fix formatting issue in build.yml ([eb343bd](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/eb343bdfa73b51df667630e12ac8c6ab3be17d7d))
+* Fix formatting issue in build.yml ([74c1656](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/74c1656d7fde4efc241721c062fb5f18dbca88f5))
+* Update build workflow for better file management ([e11b4e9](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/e11b4e99d51969b157bab5af95e50ca5f425e4e4))
+
 # [1.4.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.3.0...v1.4.0) (2026-01-12)
 
 
