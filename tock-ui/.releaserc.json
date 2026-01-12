@@ -43,6 +43,10 @@
           {
             "path": "../dist-artifacts/macos-artifacts/**/*.dmg",
             "label": "macOS DMG ${nextRelease.version}"
+          },
+          {
+            "path": "../update-json/latest.json",
+            "label": "Auto-update manifest"
           }
         ]
       }
