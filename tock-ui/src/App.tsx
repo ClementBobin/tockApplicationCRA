@@ -47,17 +47,18 @@ function App() {
           <div className="bg-slate-50 rounded-lg p-6 border border-slate-200">
             <h3 className="text-xl font-semibold text-slate-800 mb-4">Installation Options:</h3>
             <pre className="bg-slate-800 text-slate-100 p-4 rounded-lg overflow-x-auto text-sm">
-{`# Homebrew (macOS)
-brew tap kriuchkov/tap
-brew install tock
+              {`# Homebrew (macOS)
+              brew tap kriuchkov/tap
+              brew install tock
 
-# Go Install
-go install github.com/kriuchkov/tock/cmd/tock@latest
+              # Go Install
+              https://go.dev/doc/install
+              go install github.com/kriuchkov/tock/cmd/tock@latest
 
-# Build from source
-git clone https://github.com/kriuchkov/tock
-cd tock
-go build -o tock ./cmd/tock`}
+              # Build from source
+              git clone https://github.com/kriuchkov/tock
+              cd tock
+              go build -o tock ./cmd/tock`}
             </pre>
           </div>
           <button 

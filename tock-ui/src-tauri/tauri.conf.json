@@ -25,7 +25,8 @@
       }
     ],
     "security": {
-      "csp": null
+      "csp": null,
+      "dangerousDisableAssetCspModification": true
     }
   },
   "bundle": {
@@ -54,7 +55,7 @@
         "https://github.com/DiiageCUCDB/tockApplicationCRA/releases/latest/download/latest.json"
       ],
       "dialog": false,
-      "pubkey": ""
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEU4NkY0NDg3QjkyNTFBRjIKUldUeUdpVzVoMFJ2NkJhQzBIQ0xPWkJUdFFYWmwxR0o0WXN0RnVORkFDWkphbU9DK3lUZE9zMVoK"
     }
   }
 }
