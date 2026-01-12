@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.8.0...v1.9.0) (2026-01-12)
+
+
+### Features
+
+* Update version to 1.6.0 and enhance version retrieval in UpdateChecker ([bf8eaa2](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/bf8eaa2e9eea73cd08e45b5e12c3f4b5edfba3d9))
+
 # [1.8.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.7.0...v1.8.0) (2026-01-12)
 
 
