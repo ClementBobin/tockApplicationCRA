@@ -1,3 +1,18 @@
+# [1.8.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.7.0...v1.8.0) (2026-01-12)
+
+
+### Features
+
+* Enhance package.json version checking in build.yml ([1716f84](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/1716f84cb8706d16622fa7442531b01148f75cc2))
+* Refactor build workflow for version file handling ([4aa41d3](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/4aa41d3f46a48b3c01777164815e9d2ced0a6b42))
+
+# [1.7.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.6.0...v1.7.0) (2026-01-12)
+
+
+### Features
+
+* Simplify main function by removing Tauri builder and using tock_ui_lib ([fba45e9](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/fba45e90066d58bb525e192fa16a21fada771bb4))
+
 # [1.6.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.5.0...v1.6.0) (2026-01-12)
 
 

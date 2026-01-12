@@ -238,17 +238,53 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: version-files
-          path: .
+          path: ./downloaded-version-files
+
+      - name: Debug downloaded files
+        shell: bash
+        run: |
+          echo "=== Downloaded files structure ==="
+          find downloaded-version-files -type f | sort
+          echo ""
+          echo "=== Checking package.json ==="
+          PACKAGE_JSON_PATH=$(find downloaded-version-files -name "package.json" -type f | head -1)
+          if [ -n "$PACKAGE_JSON_PATH" ] && [ -f "$PACKAGE_JSON_PATH" ]; then
+            echo "Found package.json at: $PACKAGE_JSON_PATH"
+            echo "Content:"
+            cat "$PACKAGE_JSON_PATH" | grep -A 1 '"version"'
+          else
+            echo "ERROR: package.json not found!"
+          fi
 
       - name: Create update JSON
-        working-directory: ./tock-ui
+        shell: bash
         run: |
-          # Script to create update JSON file
-          VERSION=$(node -p "require('./package.json').version")
+          # Extract the new version from the downloaded package.json
+          echo "Looking for package.json..."
+          PACKAGE_JSON_PATH=$(find downloaded-version-files -name "package.json" -type f | head -1)
+          
+          if [ -z "$PACKAGE_JSON_PATH" ] || [ ! -f "$PACKAGE_JSON_PATH" ]; then
+            echo "ERROR: Could not find package.json in downloaded files"
+            find downloaded-version-files -type f
+            exit 1
+          fi
+          
+          echo "Found package.json at: $PACKAGE_JSON_PATH"
+          
+          # Use jq to extract version if available, otherwise use grep/sed
+          if command -v jq &> /dev/null; then
+            VERSION=$(jq -r '.version' "$PACKAGE_JSON_PATH")
+          else
+            VERSION=$(grep '"version"' "$PACKAGE_JSON_PATH" | sed 's/.*"version": "\([^"]*\)".*/\1/')
+          fi
+          
           echo "Creating update JSON for version: $VERSION"
           
-          mkdir -p dist
-          cat > dist/latest.json << EOF
+          # Create dist directory
+          mkdir -p tock-ui/dist
+          
+          # Create the update JSON
+          cat > tock-ui/dist/latest.json << EOF
           {
             "version": "$VERSION",
             "notes": "Auto-generated release",
@@ -275,7 +311,7 @@ jobs:
           EOF
           
           echo "Update JSON created:"
-          cat dist/latest.json
+          cat tock-ui/dist/latest.json
 
       - name: Upload update JSON
         uses: actions/upload-artifact@v4
