@@ -59,7 +59,7 @@ jobs:
             tock-ui/src-tauri/tauri.conf.json
           retention-days: 1
 
-  build-and-release:
+  build-and-release:  # This line should be indented to align with 'prepare-version:'
     needs: prepare-version
     if: |
       always() &&
@@ -94,7 +94,17 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: version-files
-          path: .
+          path: ./downloaded-version-files
+
+      - name: Debug - Show downloaded files
+        if: needs.prepare-version.outputs.has_new_version == 'true'
+        shell: bash
+        run: |
+          echo "=== Downloaded files structure ==="
+          find downloaded-version-files -type f -name "*.json" -o -name "*.toml" | xargs -I {} sh -c 'echo "File: {}"; echo "Content:"; cat {}; echo ""'
+          echo ""
+          echo "=== Full directory tree ==="
+          find downloaded-version-files -type f | sort
 
       - name: Apply updated version files
         if: needs.prepare-version.outputs.has_new_version == 'true'
@@ -102,53 +112,57 @@ jobs:
         run: |
           echo "Applying updated version files..."
           
-          # Check if we have updated files
-          if [ -f "downloaded-files/tock-ui/package.json" ]; then
+          # First check what we actually downloaded
+          echo "Looking for downloaded files..."
+          
+          # Find the actual paths
+          PACKAGE_JSON_PATH=$(find downloaded-version-files -name "package.json" -type f | head -1)
+          CARGO_TOML_PATH=$(find downloaded-version-files -name "Cargo.toml" -type f | head -1)
+          TAURI_CONF_PATH=$(find downloaded-version-files -name "tauri.conf.json" -type f | head -1)
+          
+          echo "Found package.json at: $PACKAGE_JSON_PATH"
+          echo "Found Cargo.toml at: $CARGO_TOML_PATH"
+          echo "Found tauri.conf.json at: $TAURI_CONF_PATH"
+          
+          # Copy files if found
+          if [ -n "$PACKAGE_JSON_PATH" ] && [ -f "$PACKAGE_JSON_PATH" ]; then
             echo "Updating package.json..."
-            cp downloaded-files/tock-ui/package.json tock-ui/package.json
+            cp "$PACKAGE_JSON_PATH" tock-ui/package.json
+          else
+            echo "WARNING: package.json not found in downloaded files"
           fi
           
-          if [ -f "downloaded-files/tock-ui/src-tauri/Cargo.toml" ]; then
+          if [ -n "$CARGO_TOML_PATH" ] && [ -f "$CARGO_TOML_PATH" ]; then
             echo "Updating Cargo.toml..."
             mkdir -p tock-ui/src-tauri
-            cp downloaded-files/tock-ui/src-tauri/Cargo.toml tock-ui/src-tauri/Cargo.toml
+            cp "$CARGO_TOML_PATH" tock-ui/src-tauri/Cargo.toml
+          else
+            echo "WARNING: Cargo.toml not found in downloaded files"
           fi
           
-          if [ -f "downloaded-files/tock-ui/src-tauri/tauri.conf.json" ]; then
+          if [ -n "$TAURI_CONF_PATH" ] && [ -f "$TAURI_CONF_PATH" ]; then
             echo "Updating tauri.conf.json..."
             mkdir -p tock-ui/src-tauri
-            cp downloaded-files/tock-ui/src-tauri/tauri.conf.json tock-ui/src-tauri/tauri.conf.json
+            cp "$TAURI_CONF_PATH" tock-ui/src-tauri/tauri.conf.json
+          else
+            echo "WARNING: tauri.conf.json not found in downloaded files"
           fi
           
           # Verify the updates
           echo "=== Verify updated versions ==="
           echo "package.json version:"
-          grep -A 1 '"version"' tock-ui/package.json
+          grep -A 1 '"version"' tock-ui/package.json || echo "package.json not found or no version"
           echo ""
           echo "Cargo.toml version:"
-          grep '^version' tock-ui/src-tauri/Cargo.toml
+          grep '^version' tock-ui/src-tauri/Cargo.toml 2>/dev/null || echo "Cargo.toml not found or no version"
           echo ""
           echo "tauri.conf.json version:"
-          grep '"version"' tock-ui/src-tauri/tauri.conf.json
-
-      - name: Verify version files
-        if: needs.prepare-version.outputs.has_new_version == 'true'
-        shell: bash
-        run: |
-          echo "Checking updated version files..."
-          echo "=== Directory Contents ==="
-          ls -la tock-ui/
-          echo "=== package.json version ==="
-          grep version tock-ui/package.json
-          echo "=== Cargo.toml version ==="
-          grep "^version" tock-ui/src-tauri/Cargo.toml
-          echo "=== tauri.conf.json version ==="
-          grep version tock-ui/src-tauri/tauri.conf.json
+          grep '"version"' tock-ui/src-tauri/tauri.conf.json 2>/dev/null || echo "tauri.conf.json not found or no version"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'  # Tauri typically requires Node 16-20
+          node-version: '20'
           cache: 'npm'
           cache-dependency-path: 'tock-ui/package-lock.json'
 
