@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.9.0...v1.10.0) (2026-01-15)
+
+
+### Features
+
+* Update URLs in build.yml to use correct casing ([317f010](https://github.com/DiiageCUCDB/tockApplicationCRA/commit/317f010843d16ef44bb1d328103aa575b9a47cf0))
+
 # [1.9.0](https://github.com/DiiageCUCDB/tockApplicationCRA/compare/v1.8.0...v1.9.0) (2026-01-12)
 
 
