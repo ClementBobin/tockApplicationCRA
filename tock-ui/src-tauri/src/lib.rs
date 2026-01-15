@@ -565,13 +565,23 @@ fn get_activities_for_month(year: u32, month: u32) -> CommandResult {
             let cached_at_utc = cached_at.with_timezone(&chrono::Utc);
             let cache_age = now.signed_duration_since(cached_at_utc);
             
-            // For current month, cache for 1 hour; for past/future months, cache indefinitely
-            let current_month = chrono::Local::now().format("%Y-%m").to_string();
-            let is_current_month = year_month == current_month;
-            let cache_valid = if is_current_month {
-                cache_age.num_hours() < 1
+            // Smart cache expiration based on month type
+            let now_local = chrono::Local::now();
+            let current_year = now_local.year();
+            let current_month_num = now_local.month();
+            
+            // Calculate month difference
+            let month_diff = (current_year - year as i32) * 12 + (current_month_num as i32 - month as i32);
+            
+            let cache_valid = if month_diff == 0 {
+                // Current month: cache for 1 month (30 days)
+                cache_age.num_days() < 30
+            } else if month_diff > 2 || month_diff < -2 {
+                // Past months with gap > 2: cache for 7 days
+                cache_age.num_days() < 7
             } else {
-                true // Past/future months don't change, cache indefinitely
+                // Recent past/future months (within 2 months): cache for 1 hour
+                cache_age.num_hours() < 1
             };
             
             if cache_valid {
