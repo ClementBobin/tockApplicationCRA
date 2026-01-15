@@ -13,7 +13,7 @@ use chrono::{NaiveDate, Datelike};
 use std::os::windows::process::CommandExt;
 
 mod db;
-use db::{Database, FavoriteProject, ApiRoute, ReportSettings, CachedProject, CalendarCache};
+use db::Database;
 
 // Windows-specific constant for process creation optimization
 // CREATE_NO_WINDOW (0x08000000) - Prevents creating a new console window
@@ -88,14 +88,6 @@ impl CommandCache {
             Err(poisoned) => poisoned.into_inner(),
         };
         entries.clear();
-    }
-
-    fn invalidate_pattern(&self, pattern: &str) {
-        let mut entries = match self.entries.lock() {
-            Ok(guard) => guard,
-            Err(poisoned) => poisoned.into_inner(),
-        };
-        entries.retain(|key, _| !key.contains(pattern));
     }
 }
 

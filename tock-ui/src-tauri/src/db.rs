@@ -272,26 +272,6 @@ impl Database {
         Ok(routes)
     }
     
-    pub fn get_enabled_api_routes(&self) -> SqlResult<Vec<ApiRoute>> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT id, name, url, enabled, created_at FROM api_routes WHERE enabled = 1 ORDER BY name"
-        )?;
-        
-        let routes = stmt.query_map([], |row| {
-            Ok(ApiRoute {
-                id: Some(row.get(0)?),
-                name: row.get(1)?,
-                url: row.get(2)?,
-                enabled: row.get::<_, i32>(3)? != 0,
-                created_at: row.get(4)?,
-            })
-        })?
-        .collect::<SqlResult<Vec<_>>>()?;
-        
-        Ok(routes)
-    }
-    
     // Report API Routes methods (separate from regular API routes)
     pub fn add_report_api_route(&self, name: &str, url: &str) -> SqlResult<i64> {
         let conn = self.conn.lock().unwrap();
@@ -327,26 +307,6 @@ impl Database {
         let conn = self.conn.lock().unwrap();
         let mut stmt = conn.prepare(
             "SELECT id, name, url, enabled, created_at FROM report_api_routes ORDER BY name"
-        )?;
-        
-        let routes = stmt.query_map([], |row| {
-            Ok(ApiRoute {
-                id: Some(row.get(0)?),
-                name: row.get(1)?,
-                url: row.get(2)?,
-                enabled: row.get::<_, i32>(3)? != 0,
-                created_at: row.get(4)?,
-            })
-        })?
-        .collect::<SqlResult<Vec<_>>>()?;
-        
-        Ok(routes)
-    }
-    
-    pub fn get_enabled_report_api_routes(&self) -> SqlResult<Vec<ApiRoute>> {
-        let conn = self.conn.lock().unwrap();
-        let mut stmt = conn.prepare(
-            "SELECT id, name, url, enabled, created_at FROM report_api_routes WHERE enabled = 1 ORDER BY name"
         )?;
         
         let routes = stmt.query_map([], |row| {
@@ -488,7 +448,7 @@ impl Database {
     pub fn get_cached_projects(&self, api_route_id: Option<i64>) -> SqlResult<Vec<CachedProject>> {
         let conn = self.conn.lock().unwrap();
         
-        let mut stmt = if let Some(route_id) = api_route_id {
+        let mut stmt = if let Some(_route_id) = api_route_id {
             conn.prepare(
                 "SELECT id, name, description, source_api_route_id, last_synced 
                 FROM cached_projects 
