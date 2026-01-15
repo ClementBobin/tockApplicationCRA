@@ -56,9 +56,9 @@ const CalendarDay = React.memo<CalendarDayProps>(({
       <div className="text-sm font-medium">{format(day, 'd')}</div>
       {hasActivities && dayData && (
         <div className="flex gap-0.5 justify-center mt-1 flex-wrap">
-          {Object.keys(dayData.colors).slice(0, 3).map((project, idx) => (
+          {Object.keys(dayData.colors).slice(0, 3).map((project) => (
             <div
-              key={idx}
+              key={project}
               className="w-1.5 h-1.5 rounded-full"
               style={{ backgroundColor: dayData.colors[project] }}
             />
@@ -243,7 +243,8 @@ export const HistoryTab: React.FC = () => {
   useEffect(() => {
     loadActivitiesForMonth();
     loadFavorites();
-  }, [loadActivitiesForMonth, loadFavorites]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMonth]); // Only re-run when currentMonth changes
 
   const handleDateClick = useCallback(async (date: Date) => {
     setSelectedDate(date);

@@ -454,7 +454,7 @@ impl Database {
     pub fn get_cached_projects(&self, api_route_id: Option<i64>) -> SqlResult<Vec<CachedProject>> {
         let conn = self.conn.lock().unwrap();
         
-        let mut stmt = if let Some(_route_id) = api_route_id {
+        let mut stmt = if let Some(route_id) = api_route_id {
             conn.prepare(
                 "SELECT id, name, description, source_api_route_id, last_synced 
                 FROM cached_projects 
