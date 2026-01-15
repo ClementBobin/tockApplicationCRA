@@ -99,9 +99,12 @@ jobs:
         run: |
           # Update tauri.conf.json with the public key from secrets
           if [ -n "$TAURI_PUBLIC_KEY" ]; then
-            jq --arg pubkey "$TAURI_PUBLIC_KEY" \
+            if ! jq --arg pubkey "$TAURI_PUBLIC_KEY" \
               '.plugins.updater.pubkey = $pubkey' \
-              src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp
+              src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp; then
+              echo "Error: Failed to inject public key into tauri.conf.json"
+              exit 1
+            fi
             mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
             echo "Public key injected into tauri.conf.json"
           else
@@ -117,16 +120,21 @@ jobs:
         run: |
           # Only run if certificate secret is available
           if ($env:WINDOWS_CERTIFICATE -ne "") {
-            # Decode base64 certificate and save to file
-            $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
-            $certPath = Join-Path $env:RUNNER_TEMP "certificate.pfx"
-            [IO.File]::WriteAllBytes($certPath, $certBytes)
+            try {
+              # Decode base64 certificate and save to file
+              $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
+              $certPath = Join-Path $env:RUNNER_TEMP "certificate.pfx"
+              [IO.File]::WriteAllBytes($certPath, $certBytes)
 
-            # Import certificate to local certificate store
-            $certPassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
-            Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password $certPassword
+              # Import certificate to local certificate store
+              $certPassword = ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+              Import-PfxCertificate -FilePath $certPath -CertStoreLocation Cert:\CurrentUser\My -Password $certPassword -ErrorAction Stop
 
-            Write-Host "Certificate imported successfully"
+              Write-Host "Certificate imported successfully"
+            } catch {
+              Write-Error "Failed to import certificate: $_"
+              exit 1
+            }
           } else {
             Write-Host "No certificate secret found, skipping code signing setup"
           }
@@ -258,14 +266,28 @@ jobs:
           MACOS_SIG=$(find dist-artifacts -type f -name "*.app.tar.gz.sig" | head -1)
           LINUX_SIG=$(find dist-artifacts -type f -name "*.AppImage.tar.gz.sig" | head -1)
 
-          # Read signature contents
+          # Read signature contents with validation
           WINDOWS_SIGNATURE=""
           MACOS_SIGNATURE=""
           LINUX_SIGNATURE=""
 
-          [ -f "$WINDOWS_SIG" ] && WINDOWS_SIGNATURE=$(cat "$WINDOWS_SIG")
-          [ -f "$MACOS_SIG" ] && MACOS_SIGNATURE=$(cat "$MACOS_SIG")
-          [ -f "$LINUX_SIG" ] && LINUX_SIGNATURE=$(cat "$LINUX_SIG")
+          if [ -f "$WINDOWS_SIG" ]; then
+            WINDOWS_SIGNATURE=$(cat "$WINDOWS_SIG")
+          else
+            echo "Warning: Windows signature file not found. Auto-update verification may fail."
+          fi
+
+          if [ -f "$MACOS_SIG" ]; then
+            MACOS_SIGNATURE=$(cat "$MACOS_SIG")
+          else
+            echo "Warning: macOS signature file not found. Auto-update verification may fail."
+          fi
+
+          if [ -f "$LINUX_SIG" ]; then
+            LINUX_SIGNATURE=$(cat "$LINUX_SIG")
+          else
+            echo "Warning: Linux signature file not found. Auto-update verification may fail."
+          fi
 
           # Create latest.json for auto-updates
           cat > latest.json << EOF
