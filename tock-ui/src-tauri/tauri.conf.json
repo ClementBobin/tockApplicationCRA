@@ -40,7 +40,7 @@
     "windows": {
       "certificateThumbprint": null,
       "digestAlgorithm": "sha256",
-      "timestampUrl": "",
+      "timestampUrl": "https://timestamp.digicert.com",
       "nsis": {
         "displayLanguageSelector": false,
         "installMode": "currentUser",
