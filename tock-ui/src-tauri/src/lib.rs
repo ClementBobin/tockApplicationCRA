@@ -561,11 +561,12 @@ fn get_activities_for_month(year: u32, month: u32) -> CommandResult {
     if let Ok(Some(cache_entry)) = get_db().get_calendar_cache(&year_month) {
         // Parse cached_at timestamp to check if cache is still valid
         if let Ok(cached_at) = chrono::DateTime::parse_from_rfc3339(&cache_entry.cached_at) {
-            let now = chrono::Local::now();
-            let cache_age = now.signed_duration_since(cached_at);
+            let now = chrono::Utc::now();
+            let cached_at_utc = cached_at.with_timezone(&chrono::Utc);
+            let cache_age = now.signed_duration_since(cached_at_utc);
             
             // For current month, cache for 1 hour; for past/future months, cache indefinitely
-            let current_month = now.format("%Y-%m").to_string();
+            let current_month = chrono::Local::now().format("%Y-%m").to_string();
             let is_current_month = year_month == current_month;
             let cache_valid = if is_current_month {
                 cache_age.num_hours() < 1
