@@ -119,7 +119,7 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
         run: |
           # Only run if certificate secret is available
-          if ($env:WINDOWS_CERTIFICATE -ne "") {
+          if (![string]::IsNullOrEmpty($env:WINDOWS_CERTIFICATE)) {
             try {
               # Decode base64 certificate and save to file
               $certBytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE)
@@ -260,6 +260,22 @@ jobs:
           WINDOWS_UPDATER=$(find dist-artifacts -type f -name "*.nsis.zip" ! -name "*.sig" | head -1)
           MACOS_UPDATER=$(find dist-artifacts -type f -name "*.app.tar.gz" ! -name "*.sig" | head -1)
           LINUX_UPDATER=$(find dist-artifacts -type f -name "*.AppImage.tar.gz" ! -name "*.sig" | head -1)
+
+          # Validate updater files exist
+          if [ -z "$WINDOWS_UPDATER" ] || [ ! -f "$WINDOWS_UPDATER" ]; then
+            echo "Error: Windows updater file not found"
+            exit 1
+          fi
+
+          if [ -z "$MACOS_UPDATER" ] || [ ! -f "$MACOS_UPDATER" ]; then
+            echo "Error: macOS updater file not found"
+            exit 1
+          fi
+
+          if [ -z "$LINUX_UPDATER" ] || [ ! -f "$LINUX_UPDATER" ]; then
+            echo "Error: Linux updater file not found"
+            exit 1
+          fi
 
           # Find signature files
           WINDOWS_SIG=$(find dist-artifacts -type f -name "*.nsis.zip.sig" | head -1)

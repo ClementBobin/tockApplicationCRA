@@ -39,10 +39,10 @@ This is the public key counterpart to the private key, used by the application t
 3. Add `TAURI_PUBLIC_KEY`:
    - Paste the public key string
 
-**Example public key format** (this is just an example, use your actual generated key):
+**Example public key format** (this is just a placeholder example, use your actual generated key):
 ```
-untrusted comment: minisign public key: 1234567890ABCDEF
-RWQxYzIwMWQxZjcwOGE4ZGVmYWJjZGVmMTIzNDU2Nzg5MGFiY2RlZg==
+untrusted comment: minisign public key
+RWYourActualPublicKeyBase64StringGoesHere==
 ```
 
 ### 3. WINDOWS_CERTIFICATE and WINDOWS_CERTIFICATE_PASSWORD (Optional)
