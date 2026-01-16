@@ -210,7 +210,7 @@ jobs:
         shell: bash
         run: |
           if [ -n "$TAURI_PUBLIC_KEY" ]; then
-            if ! jq --arg pubkey "$TAURI_PUBLIC_KEY" \
+            if ! jq --indent 2 --arg pubkey "$TAURI_PUBLIC_KEY" \
               '.plugins.updater.pubkey = $pubkey' \
               src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp; then
               echo "Error: Failed to inject public key into tauri.conf.json"
