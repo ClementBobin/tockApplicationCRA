@@ -203,6 +203,25 @@ jobs:
         working-directory: ./tock-ui
         run: npm ci
 
+      - name: Inject updater public key
+        working-directory: ./tock-ui
+        env:
+          TAURI_PUBLIC_KEY: ${{ secrets.TAURI_PUBLIC_KEY }}
+        shell: bash
+        run: |
+          if [ -n "$TAURI_PUBLIC_KEY" ]; then
+            if ! jq --arg pubkey "$TAURI_PUBLIC_KEY" \
+              '.plugins.updater.pubkey = $pubkey' \
+              src-tauri/tauri.conf.json > src-tauri/tauri.conf.json.tmp; then
+              echo "Error: Failed to inject public key into tauri.conf.json"
+              exit 1
+            fi
+            mv src-tauri/tauri.conf.json.tmp src-tauri/tauri.conf.json
+            echo "Public key injected into tauri.conf.json"
+          else
+            echo "Warning: TAURI_PUBLIC_KEY secret not set. Auto-update signature verification will not work."
+          fi
+
       - name: Build Tauri application
         working-directory: ./tock-ui
         run: npm run tauri build -- ${{ matrix.args }}
