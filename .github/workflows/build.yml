@@ -310,11 +310,13 @@ jobs:
           # Function to find and read signature file
           find_signature() {
             local pattern="$1"
+            local platform="$2"
             local sig_file=$(find build-artifacts -type f -name "${pattern}.sig" | head -1)
             if [ -n "$sig_file" ] && [ -f "$sig_file" ]; then
               cat "$sig_file"
             else
-              echo ""
+              echo "ERROR: Signature file not found for ${platform} (pattern: ${pattern})" >&2
+              return 1
             fi
           }
           
@@ -322,20 +324,54 @@ jobs:
           echo "Extracting signatures..."
           
           # Linux AppImage signature
-          LINUX_SIG=$(find_signature "*amd64.AppImage.tar.gz")
+          LINUX_SIG=$(find_signature "*amd64.AppImage.tar.gz" "Linux")
           echo "Linux signature: ${LINUX_SIG:0:50}..."
           
           # Windows NSIS signature
-          WINDOWS_SIG=$(find_signature "*x64-setup.nsis.zip")
+          WINDOWS_SIG=$(find_signature "*x64-setup.nsis.zip" "Windows")
           echo "Windows signature: ${WINDOWS_SIG:0:50}..."
           
           # macOS x64 signature
-          MACOS_X64_SIG=$(find_signature "*x64.app.tar.gz")
+          MACOS_X64_SIG=$(find_signature "*x64.app.tar.gz" "macOS x64")
           echo "macOS x64 signature: ${MACOS_X64_SIG:0:50}..."
           
           # macOS ARM64 signature
-          MACOS_ARM64_SIG=$(find_signature "*aarch64.app.tar.gz")
+          MACOS_ARM64_SIG=$(find_signature "*aarch64.app.tar.gz" "macOS ARM64")
           echo "macOS ARM64 signature: ${MACOS_ARM64_SIG:0:50}..."
+          
+          # Validate all signatures are non-empty
+          echo ""
+          echo "Validating signatures..."
+          ALL_VALID=true
+          
+          if [ -z "$LINUX_SIG" ]; then
+            echo "ERROR: Linux signature is empty"
+            ALL_VALID=false
+          fi
+          
+          if [ -z "$WINDOWS_SIG" ]; then
+            echo "ERROR: Windows signature is empty"
+            ALL_VALID=false
+          fi
+          
+          if [ -z "$MACOS_X64_SIG" ]; then
+            echo "ERROR: macOS x64 signature is empty"
+            ALL_VALID=false
+          fi
+          
+          if [ -z "$MACOS_ARM64_SIG" ]; then
+            echo "ERROR: macOS ARM64 signature is empty"
+            ALL_VALID=false
+          fi
+          
+          if [ "$ALL_VALID" = "false" ]; then
+            echo ""
+            echo "ERROR: One or more signatures are missing. Cannot create update JSON without signatures."
+            echo "This is a security requirement - all updates must be signed."
+            exit 1
+          fi
+          
+          echo "All signatures validated successfully!"
           
           # Create dist directory
           mkdir -p tock-ui/dist
